@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User } from './entities/user.entity';
 import { Model } from 'mongoose';
+import * as bycrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -18,16 +19,32 @@ export class AuthService {
     
     try{
       
-      const newUser = new this.userModel( createUserDto );
-      return await newUser.save();
+      const { password, ...userData } = createUserDto;
+      
+      
+      const newUser = new this.userModel({
+        password: bycrypt.hashSync(password, 10),
+        ...userData
+      });
+
+      await newUser.save();
+
+      const  { password:_, ...user} = newUser.toJSON();
+
+      return user
     }catch(error){
       if(error.code === 11000){
         throw new BadRequestException(`${ createUserDto.email } already exists`);
       }
+      throw new InternalServerErrorException('Something went wrong!');
     }
 
 
 
+  }
+
+  login() {
+    
   }
 
   findAll() {
