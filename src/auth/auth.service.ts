@@ -1,15 +1,12 @@
 import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { CreateUserDto, RegisterDto, LoginDto, UpdateAuthDto } from './dto';
+import { LoginResponse } from './interfaces/login-response.interfaces';
 import { InjectModel } from '@nestjs/mongoose';
-import { User } from './entities/user.entity';
-import { Model } from 'mongoose';
-import * as bycrypt from 'bcryptjs';
-import { LoginDto } from './dto/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
-import { LoginResponse } from './interfaces/login-response.interfaces';
-import { RegisterDto } from './dto/register-user.dto';
+import { Model } from 'mongoose';
+import { User } from './entities/user.entity';
+import * as bycrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -49,34 +46,12 @@ export class AuthService {
 
   async register(registerDto: RegisterDto): Promise<LoginResponse> {
 
-    try{
-      
-      const { password, ...userData } = registerDto;
-      
-      
-      const newUser = new this.userModel({
-        password: bycrypt.hashSync(password, 10),
-        ...userData
-      });
-
-      await newUser.save();
-      const user = await this.userModel.findOne({ email:registerDto.email });
-
-      const  { password:_, ...rest} = newUser.toJSON();
-
-      return{
-        user: user,
-        token: await this.getJwtToken({ id: user.id })
-      }
-
-    }catch(error){
-      if(error.code === 11000){
-        throw new BadRequestException(`${ registerDto.email } already exists`);
-      }
-      throw new InternalServerErrorException('Something went wrong!');
+    const user = await this.create(registerDto)
+    
+    return{
+      user,
+      token: await this.getJwtToken({ id: user._id }),
     }
-
-
 
   }
 
@@ -103,8 +78,8 @@ export class AuthService {
     }
   }
 
-  findAll() {
-    return `This action returns all auth`;
+  findAll(): Promise<User[]> {
+    return this.userModel.find();
   }
 
   findOne(id: number) {
