@@ -1,36 +1,46 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
 
   constructor(
-    private jwtService: JwtService
+    private jwtService: JwtService,
+    private authservice: AuthService
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
 
     const request = context.switchToHttp().getRequest();
     const token = this.extractTokenFromHeader(request);
-    console.log({token})
 
     if(!token) {
-      throw new UnauthorizedException('Token not found');
+      throw new UnauthorizedException('There is no bearer token');
     }
 
-    const payload = await this.jwtService.verifyAsync<JwtPayload>(
-      token,
-      {
-        secret: process.env.JWT_SECRET
-      }
-    );
+    try{
+      const payload = await this.jwtService.verifyAsync<JwtPayload>(
+        token,
+        {
+          secret: process.env.JWT_SECRET
+        }
+      );
+  
+      const user = await this.authservice.findUserById(payload.id);
+      if(!user) throw new UnauthorizedException('User not found');
+ 
+      if(!user.isActive) throw new UnauthorizedException('User not active');
+      
+      request['user'] = user;
+    }catch(error){
+      throw new UnauthorizedException('Invalid token');
+    }
 
 
 
-    request['user'] = payload;
-
-    return Promise.resolve(true) ;
+    return true;
   }
 
 
