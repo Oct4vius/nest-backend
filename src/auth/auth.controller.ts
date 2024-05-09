@@ -37,7 +37,6 @@ export class AuthController {
   @UseGuards( AuthGuard )
   @Get('/check-token')
   checkToken( @Request() req: Request ) {
-    console.log(req);
     return this.authService.checkToken( req );
   }
 
